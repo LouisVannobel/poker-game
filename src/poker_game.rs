@@ -155,27 +155,31 @@ impl PokerGame {
             let mut action_occurred = false;
             let mut new_ordered_indices = Vec::new();
             for &i in &ordered_indices {
-                let required = current_bet - self.players[i].current_bet;
+                let required = current_bet.saturating_sub(self.players[i].current_bet);
                 let bet = self.get_bet(i, required);
                 let player = &mut self.players[i];
-                match bet {
+                
+                let actual_bet = bet.min(player.chips);
+                
+                match actual_bet {
                     0 if required > 0 => {
                         player.is_active = false;
                         println!("| {} se couche.", player.name);
                     },
                     0 => (),
                     _ => {
-                        let total_bet = player.current_bet + bet;
+                        let total_bet = player.current_bet.saturating_add(actual_bet);
                         player.current_bet = total_bet;
-                        player.chips -= bet;
-                        self.pot += bet;
+                        player.chips = player.chips.saturating_sub(actual_bet);
+                        self.pot = self.pot.saturating_add(actual_bet);
+                        
                         if total_bet > current_bet {
                             current_bet = total_bet;
                             last_raiser = Some(i);
                             action_occurred = true;
                             println!("| {} relance à {}.", player.name, total_bet);
                         } else {
-                            println!("| {} suit avec {}.", player.name, bet);
+                            println!("| {} suit avec {}.", player.name, actual_bet);
                         }
                     }
                 }
@@ -195,6 +199,11 @@ impl PokerGame {
 
     fn get_bet(&self, player_index: usize, required: u32) -> u32 {
         let player = &self.players[player_index];
+        
+        if required > player.chips {
+            return 0;
+        }
+    
         if player.is_human {
             println!("| {}, vous avez {} jetons. Mise requise: {}. Entrez votre mise (0 pour passer): ", player.name, player.chips, required);
             loop {
@@ -202,6 +211,9 @@ impl PokerGame {
                 std::io::stdin().read_line(&mut input).unwrap();
                 let bet = input.trim().parse::<u32>();
                 match bet {
+                    Ok(bet) if bet > player.chips => {
+                        println!("| Vous n'avez pas assez de jetons. Maximum possible: {}", player.chips);
+                    }
                     Ok(bet) if bet >= required => return bet,
                     Ok(0) if required == 0 => return 0,
                     Ok(0) => return 0,
@@ -218,8 +230,16 @@ impl PokerGame {
                 "IA-Extrêmement-Difficile" => 0.8,
                 _ => 0.0,
             };
+    
+            let max_possible_bet = player.chips;
+            
             if rng.gen_bool(raise_chance) && player.chips > required {
-                required + rng.gen_range(1..=player.chips - required)
+                let max_raise = max_possible_bet.saturating_sub(required);
+                if max_raise > 0 {
+                    required + rng.gen_range(1..=max_raise)
+                } else {
+                    required
+                }
             } else if player.chips >= required {
                 required
             } else {
