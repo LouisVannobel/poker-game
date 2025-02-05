@@ -31,10 +31,20 @@ fn main() {
     let num_ai_players: usize = input.trim().parse().unwrap_or(1);
 
     for i in 0..num_ai_players {
-        println!("| Choisissez le niveau de difficulté pour l'IA {}: (1) Facile, (2) Intermédiaire, (3) Difficile, (4) Extrêmement Difficile", i + 1);
-        input.clear();
-        io::stdin().read_line(&mut input).unwrap();
-        let difficulty = input.trim().parse().unwrap_or(1);
+        let difficulty = loop {
+            println!("| Choisissez le niveau de difficulté pour l'IA {}: (1) Facile, (2) Intermédiaire, (3) Difficile, (4) Extrêmement Difficile", i + 1);
+            input.clear();
+            io::stdin().read_line(&mut input).unwrap();
+            
+            match input.trim().parse::<u32>() {
+                Ok(level) if level >= 1 && level <= 4 => break level,
+                _ => {
+                    println!("| Erreur: Veuillez entrer un niveau de difficulté valide (1 à 4)");
+                    continue;
+                }
+            }
+        };
+    
         let ai_name = format!("IA-{}-{}", i + 1, difficulty);
         players.push(Player::new(ai_name, false));
     }
