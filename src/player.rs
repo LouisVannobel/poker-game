@@ -1,7 +1,7 @@
 use crate::card::Card;
 
 #[derive(Debug, Clone)]
-pub struct Player {
+pub struct Player { 
     pub name: String,
     pub chips: u32,
     pub hand: Vec<Card>,
